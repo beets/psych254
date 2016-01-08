@@ -1,4 +1,4 @@
-Psych 254: Lab in Experimental Methods (Winter 2016)
+Psych 254: Lab in Experimental Methods
 ======================================
 
-Code for *auc@*'s lab assignments.
+Code for _auc@_'s lab assignments.
