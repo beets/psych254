@@ -4,6 +4,7 @@ author: "Mike Frank"
 date: "January 11, 2015"
 output: html_document
 ---
+Carolyn Au (auc@)
 
 This is problem set #1, in which we hope you will practice the packages tidyr and dplyr. There are some great cheat sheets from [RStudio](http://www.rstudio.com/resources/cheatsheets/).
 
@@ -115,12 +116,6 @@ d.tidy <- d %>%
   select(WorkerId, Input.condition, 
          starts_with("Answer"), 
          starts_with("Input"))
-#  select(-starts_with("HIT"), -Title, -Description, -Keywords, -Reward,
-#         -CreationTime, -MaxAssignments, -RequesterAnnotation,
-#         -RejectionTime, -RequesterFeedback, -LifetimeApprovalRate,         
-#         -Last30DaysApprovalRate, -Last7DaysApprovalRate,
-#         -AssignmentStatus, -ApprovalTime)
-
 ```
 
 
@@ -134,9 +129,6 @@ Try using the `%>%` operator as well. So you will be "piping" `d %>% rename(...)
 
 ```{r rename}
 d.tidy <- d.tidy %>% 
-#  rename(Answer.DogCost = Answer.dog_cost) %>%
-#  rename(Answer.PlasmaCost = Answer.plasma_cost) %>%
-#  rename(Answer.SushiCost = Answer.sushi_cost)
   rename(workerid = WorkerId,
          condition = Input.condition,          
          plasma_anchor = Input.price1,
