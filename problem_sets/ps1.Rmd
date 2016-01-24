@@ -146,7 +146,7 @@ HINT: look for online examples!
 
 ```{r gather}
 d.tidy <- d.tidy %>%
-  gather(name, cost, 
+  gather(item, cost, 
          dog_anchor, plasma_anchor, sushi_anchor, 
          dog_cost, plasma_cost, sushi_cost)
 ```
@@ -156,7 +156,7 @@ Bonus problem: *spread* these data back into a wide format data frame.
 
 ```{r spread}
 d.wide <- d.tidy %>%
-  spread(name, cost)
+  spread(item, cost)
 ```
 
 
@@ -167,12 +167,18 @@ NOTE: If you generally use `plyr` package, note that they do not play nicely tog
 
 As we said in class, a good thing to do is always to check histograms of the response variable. Do that now, using either regular base graphics or ggplot. What can you conclude? 
 
-> The values for sushi are much lower than that for dogs and plasma.
-
 ```{r}
-qplot(cost, facets = ~ name, data=d.tidy)
+ggplot(d.tidy, aes(x=cost, fill=item)) +
+    geom_histogram(position=position_dodge())
 ```
 
+> The data is difficult to interpret because of the different scales. If we allow for different scales with each item, we can interpret the sushi data better. However, it looks like there might not be any correlations between conditions and outcomes.
+
+```{r}
+ggplot(data=d.tidy, aes(x=cost, fill=condition)) +
+facet_wrap(~item, scale="free") +
+geom_histogram(position="dodge")
+```
 
 Try also using the dplyr `distinct` function to remove the duplicate participants from the raw csv file that you discovered in part 1.
 
@@ -187,7 +193,7 @@ OK, now we turn to the actual data anlysis. We'll be using dplyr verbs to *filte
 Start by using *summarise* to compute the grand mean bet. (Note that this is the same as taking the grant mean - the value will come later. Right now we're just learning the syntax of that verb.)
 
 ```{r}
-grouped <- group_by(d.tidy, name)
+grouped <- group_by(d.tidy, item)
 summarise(grouped, mean=mean(cost))
 ```
 
@@ -218,7 +224,7 @@ In other words, you get to make a clean list of the things you want to do and ch
 Let's use that capacity to combine summarise with *group_by*, which allows us to break up our summary into groups. Try grouping by item and condition and taking means using *summarise*, chaining these two verbs with %>%.
 
 ```{r}
-group_by(d.tidy, name) %>%
+group_by(d.tidy, item) %>%
 summarise(mean=mean(cost))
 ```
 
@@ -261,7 +267,7 @@ To do the first, use the *mutate* verb to add a percent change column, then comu
 pcts <- d.tidy %>% 
   mutate(pct_change = (cost - anchor) * 100 /anchor)
 pcts %>% 
-  group_by(item) %>%
+  group_by(item, condition) %>%
   summarise(mean = mean(pct_change))
 ```
 
@@ -276,6 +282,9 @@ z.scores <- d.tidy %>%
   mutate(mu = mean(cost), sd = sd(cost)) %>%
   ungroup() %>%
   mutate(z = (cost - mu) / sd)
+  
+z.scores %>% group_by(item, condition, add=FALSE) %>%
+ summarize("mean z" = mean(z))
 ```
 
 
