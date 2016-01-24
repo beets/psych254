@@ -39,8 +39,59 @@ Fine, right? Why can't we go forward with the analysis?
 
 HINT: try computing some summary statistics for the different items. Also, are there any participants that did the task more than once?
 
+> A quick exploration of the data in a spreadsheet and using summary(d) quickly shows that there are supposed to be 3 experimental conditions with 30 participants in each. However, there are some data in the input and answers which aren't formatted correctly.
+```{r}
+summary(d)
+```
 
-Fix the data file *programmatically*, i.e., write code that transforms the unclean data frame into a clean data frame.
+> This is confirmed by checking levels for the Answer columns above, e.g.: 
+```{r}
+levels(d$Answer.dog_cost)
+levels(d$Answer.plasma_cost)
+levels(d$Answer.sushi_cost)
+```
+
+
+> To fix that (and convert the levels to numeric values):
+```{r}
+d$Answer.dog_cost <- revalue(d$Answer.dog_cost, c("five hundred"=500, "2,000"=2000))
+d$Answer.sushi_cost <- revalue(d$Answer.sushi_cost, c("7,75"=7.75, "ehight"=8))
+d$Answer.plasma_cost <- revalue(d$Answer.plasma_cost, c("4,000"=4000, "0.45"=4500))
+
+d$Answer.dog_cost <- as.numeric(as.character(d$Answer.dog_cost))
+d$Answer.sushi_cost <- as.numeric(as.character(d$Answer.sushi_cost))
+d$Answer.plasma_cost <- as.numeric(as.character(d$Answer.plasma_cost))
+```
+
+> The input prices are also read in as strings because of the commas.
+```{r}
+d$Input.price1 <- as.numeric(gsub(",","", d$Input.price1))
+d$Input.price2 <- as.numeric(gsub(",","", d$Input.price2))
+d$Input.price3 <- as.numeric(gsub(",","", d$Input.price3))
+```
+
+> Additionally, the summary clearly shows that 2 participants completed the task more than once. To fix this, we can keep only the first result for each participant.
+```{r}
+d[which(d$WorkerId == "A1VYX5VKZ0CTWU"),]
+d <- subset(d, AssignmentId != "2IBHSTLB3L0FR1IX01AEQREVGHDIU3" & AssignmentId != "22LLB3L0FBJ9Y6KYQ9IE2E5RR3PXLP")
+
+d[which(d$WorkerId == "A5IUO2T5MZQUZ"),]
+d <- subset(d, AssignmentId != "2RSJPPSI2KYE5314JVBLT6WJ500QKL")
+```
+
+> We could also drop AssignmentId=2C2ESCWY2AOOIYV1Q6FONQSCOG111N as well, since it has an incomplete answer for sushi_cost and was completed in only 18s.
+```{r}
+d <- subset(d, AssignmentId != "2C2ESCWY2AOOIYV1Q6FONQSCOG111N")
+```
+
+
+> To confirm that the fixes were done correctly:
+```{r}
+summary(d)
+```
+
+> which shows that the Answers are all numeric and there aren't duplicate WorkerId's. Each input condition still has equal numbers of participants as well.
+
 
 
 Part 2: Making these data tidy
@@ -49,7 +100,8 @@ Part 2: Making these data tidy
 Now let's start with the cleaned data, so that we are all beginning from the same place.
 
 ```{r data2}
-d <- read.csv("../data/janiszewski_rep_cleaned.csv")
+d <- read.csv("data/janiszewski_rep_cleaned.csv")
+d <- subset(d, WorkerId != "A3S99S9NJ6X08J") # drop row with NA sushi cost
 ```
 
 This data frame is in *wide* format - that means that each row is a participant and there are multiple observations per participant. This data is not *tidy*.
@@ -59,7 +111,16 @@ To make this data tidy, we'll do some cleanup. First, remove the columns you don
 HINT: `?select` and the examples of helper functions will help you be efficient.
 
 ```{r select}
-d.tidy <- select(...)
+d.tidy <- d %>% 
+  select(WorkerId, Input.condition, 
+         starts_with("Answer"), 
+         starts_with("Input"))
+#  select(-starts_with("HIT"), -Title, -Description, -Keywords, -Reward,
+#         -CreationTime, -MaxAssignments, -RequesterAnnotation,
+#         -RejectionTime, -RequesterFeedback, -LifetimeApprovalRate,         
+#         -Last30DaysApprovalRate, -Last7DaysApprovalRate,
+#         -AssignmentStatus, -ApprovalTime)
+
 ```
 
 
@@ -72,7 +133,18 @@ Try renaming some variables using `rename`. A good naming scheme is:
 Try using the `%>%` operator as well. So you will be "piping" `d %>% rename(...)`.
 
 ```{r rename}
-d.tidy <- ...
+d.tidy <- d.tidy %>% 
+#  rename(Answer.DogCost = Answer.dog_cost) %>%
+#  rename(Answer.PlasmaCost = Answer.plasma_cost) %>%
+#  rename(Answer.SushiCost = Answer.sushi_cost)
+  rename(workerid = WorkerId,
+         condition = Input.condition,          
+         plasma_anchor = Input.price1,
+         dog_anchor = Input.price2,
+         sushi_anchor = Input.price3,
+         dog_cost = Answer.dog_cost,
+         plasma_cost = Answer.plasma_cost, 
+         sushi_cost = Answer.sushi_cost) 
 ```
 
 
@@ -81,14 +153,18 @@ OK, now for the tricky part. Use the verb *gather* to turn this into a *tidy* da
 HINT: look for online examples!
 
 ```{r gather}
-d.tidy <- ...
+d.tidy <- d.tidy %>%
+  gather(name, cost, 
+         dog_anchor, plasma_anchor, sushi_anchor, 
+         dog_cost, plasma_cost, sushi_cost)
 ```
 
 
 Bonus problem: *spread* these data back into a wide format data frame.
 
 ```{r spread}
-d.wide <- ...
+d.wide <- d.tidy %>%
+  spread(name, cost)
 ```
 
 
@@ -99,16 +175,18 @@ NOTE: If you generally use `plyr` package, note that they do not play nicely tog
 
 As we said in class, a good thing to do is always to check histograms of the response variable. Do that now, using either regular base graphics or ggplot. What can you conclude? 
 
+> The values for sushi are much lower than that for dogs and plasma.
+
 ```{r}
-...
+qplot(cost, facets = ~ name, data=d.tidy)
 ```
 
 
 Try also using the dplyr `distinct` function to remove the duplicate participants from the raw csv file that you discovered in part 1.
 
 ```{r}
-d.raw <- read.csv("../data/janiszewski_rep_exercise.csv")
-d.unique.subs <- ...
+d.raw <- read.csv("data/janiszewski_rep_exercise.csv")
+d.unique.subs <- distinct(d.raw, WorkerId)
 ```
 
 
@@ -117,7 +195,8 @@ OK, now we turn to the actual data anlysis. We'll be using dplyr verbs to *filte
 Start by using *summarise* to compute the grand mean bet. (Note that this is the same as taking the grant mean - the value will come later. Right now we're just learning the syntax of that verb.)
 
 ```{r}
-...
+grouped <- group_by(d.tidy, name)
+summarise(grouped, mean=mean(cost))
 ```
 
 
@@ -147,7 +226,8 @@ In other words, you get to make a clean list of the things you want to do and ch
 Let's use that capacity to combine summarise with *group_by*, which allows us to break up our summary into groups. Try grouping by item and condition and taking means using *summarise*, chaining these two verbs with %>%.
 
 ```{r}
-...
+group_by(d.tidy, name) %>%
+summarise(mean=mean(cost))
 ```
 
 
@@ -187,8 +267,10 @@ To do the first, use the *mutate* verb to add a percent change column, then comu
 
 ```{r}
 pcts <- d.tidy %>% 
-  mutate(pct_change = ... ) %>% 
-  ...
+  mutate(pct_change = (cost - anchor) * 100 /anchor)
+pcts %>% 
+  group_by(item) %>%
+  summarise(mean = mean(pct_change))
 ```
 
 
@@ -197,28 +279,26 @@ To do the second, you will need to *group* once by item, then to *ungroup* and  
 HINT: `scale(x)` returns a complicated data structure that doesn't play nicely with dplyr. try `scale(x)[,1]` to get what you need. 
 
 ```{r}
-pcts <- d.tidy %>% 
-  mutate(pct_change = ... ) %>% 
-  ...
+z.scores <- d.tidy %>% 
+  group_by(item) %>%
+  mutate(mu = mean(cost), sd = sd(cost)) %>%
+  ungroup() %>%
+  mutate(z = (cost - mu) / sd)
 ```
 
 
 OK, now here comes the end: we're going to plot the differences and see if anything happened. First the percent change:
 
 ```{r}
-qplot(item, pct, fill=condition, 
-      position="dodge",
-      stat="identity", geom="bar", 
-      data=pcts)  
+ggplot(pcts, aes(x = item, y = pct_change, fill =condition )) +
+   geom_bar(position = position_dodge(), stat = "identity")
 ```
 
 and the z-scores:
 
 ```{r}
-qplot(item, z, fill=condition, 
-      position="dodge",
-      stat="identity", geom="bar", 
-      data=z.scores)  
+ggplot(z.scores, aes(x = item, y = z, fill =condition )) +
+   geom_bar(position = position_dodge(), stat = "identity")
 ```
 
 Oh well. This replication didn't seem to work out straightforwardly. 
